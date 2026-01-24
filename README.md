@@ -1,121 +1,182 @@
-# Graph neural network (GNN) for molecular property prediction (SMILES format)
+# HDD-LIMA: Hybrid-noise & Dynamic-optimization Diffusion for Library-Independent Mass Spectrometry Analysis
 
+HDD-LIMA is a structure-conditioned generative framework for synthesizing mass spectra from molecular structure representations (e.g., SMILES). The goal is to support spectrum generation and analysis in settings where reference libraries are incomplete or unavailable.
 
-### _**Important: this repository will not be further developed and maintained because we have shown and believe that graph neural networks or graph convolutional networks are incorrect and useless for modeling molecules (see our paper in [NeurIPS 2020](https://proceedings.neurips.cc/paper/2020/hash/1534b76d325a8f591b52d302e7181331-Abstract.html)). Please consider switching to our new and simple machine learning model called [quantum deep field](https://github.com/masashitsubaki/QuantumDeepField_molecule).**_
+---
 
+**Key components**
+1. **Structure encoding**  
+   Molecules are represented as graphs derived from SMILES and encoded into fixed-dimensional embeddings using a graph neural network (GNN). This embedding serves as the conditioning signal for generation.
 
-This is the code of a graph neural network (GNN) for molecules,
-which is based on learning representations of r-radius subgraphs (or fingerprints) in molecules.
-This GNN is proposed in our paper "[Compound-protein Interaction Prediction with End-to-end Learning of Neural Networks for Graphs and Sequences (Bioinformatics, 2018)](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/bty535/5050020?redirectedFrom=PDF),"
-which aims to predict compound-protein interactions for drug discovery.
-Using the proposed GNN, in this page we provide an implementation of the model
-for predicting various molecular properties such as drug efficacy and photovoltaic efficiency.
+2. **Conditional diffusion-based generation**  
+   A diffusion-style denoising process is used to produce spectrum-related outputs conditioned on molecular embeddings. The model is trained to recover peak-related information through iterative refinement.
 
-<div align="center">
-<p><img src="figures/overview.jpeg" width="600" /></p>
-</div>
+3. **Noise modeling tailored to MS characteristics**  
+   The implementation includes a configurable noise formulation intended to better accommodate non-ideal statistical properties commonly observed in MS signals (e.g., asymmetry and heavy-tailed behavior in intensities).
 
+4. **Training objective and optimization schedule**  
+   The training procedure combines distribution-level alignment and peak-level refinement objectives, with an adjustable scheduling strategy that can shift emphasis over training.
 
-## Characteristics
+**Evaluation protocol (code-level)**
+Model evaluation in this repository is based on a top-*k* peak protocol and reports standard quantitative measures for:
+- *m/z* localization quality (e.g., MAE/RMSE)
+- intensity reconstruction quality (e.g., MAE/RMSE)
+- spectrum-level agreement (e.g., cosine similarity and spectral angle mapper)
 
-- This code is easy to use. After setting the environment (e.g., PyTorch),
-preprocessing data and learning a model can be done by only two commands (see "Usage").
-- If you prepare a molecular property dataset with the same format as provided in the dataset directory,
-you can learn our GNN with your dataset by the two commands
-(see "Training of our GNN using your molecular property dataset").
+---
 
+## 2. Repository Structure
 
-## Our GNN model
+```text
+HDD-LIMA/
+├─ data/
+│  ├─ preprocess.py
+│  └─ csv                      # internal datasets (not publicly released)
+│
+├─ model/
+│  ├─ diffusion.py                # Structure-conditioned diffusion
+│  ├─ reverse_diffusion.py        # ReverseDiffusionUNet backbone
+│  ├─ gnn.py                      # GraphNeuralNetwork encoder
+│  ├─ utils.py                    # FiLM, DependencyNormalization, and utilities
+│  └─ __init__.py
+│
+├─ output/
+│  └─ checkpoints/
+│     └─ run_XX/
+│        ├─ fingerprint_dict.pth
+│        ├─ model_checkpoint_initial.pth
+│        └─ model_checkpoint_epoch_*.pth
+│
+├─ train.py
+├─ test.py
+├─ train.bat
+├─ test.bat
+└─ README.md
+````
 
-The basic idea of a GNN can be described as follows:
+---
 
-<div align="center">
-<p><img src="figures/basic_GNN.jpeg" width="600" /></p>
-</div>
+## 3. Installation
 
-The GNN (1) updates the randomly initialized atom vectors
-considering the graph structure of a molecule,
-(2) obtains the molecular vector, and then
-(3) learns the neural network parameters including the atom vectors
-via backpropagation to predict a molecular property.
-That is, this is the end-to-end learning that does not require
-input features or descriptors used in chemoinformatics.
+### 3.1 Prerequisites
 
-In drug compounds, for example, each atom, chemical bond, and their connections
-in a molecular graph are not so important.
-More important in drug compounds is to consider
-**relatively large fragments** in a molecular graph,
-e.g., [β-lactam in penicillin](https://en.wikipedia.org/wiki/%CE%92-lactam_antibiotic).
-Such fragments are referred to as r-radius subgraphs or **molecular fingerprints**.
-Based on this observation, our GNN leverages molecular fingerprints
-and the model can be described as follows:
+* OS: Windows (tested), Linux should also work with minor path adjustments
+* Python: recommended 3.9–3.11
+* GPU: optional but recommended for training (CUDA-enabled PyTorch)
 
-<div align="center">
-<p><img src="figures/our_GNN.jpeg" width="600" /></p>
-</div>
+### 3.2 Environment Setup (Conda recommended)
 
-Thus, instead of using atom vectors, we
-(1) extract the fingerprints from a molecular graph
-and initialize them using random vectors,
-(2) obtain the molecular vector by GNN, and then
-(3) learn the representations.
-This GNN allows us to learn the representations of molecular fingerprints.
-
-
-## Requirements
-
-- PyTorch
-- scikit-learn
-- RDKit
-
-
-## Usage
-
-We provide two major scripts in the main directory as follows.
-
-- "preprocessing.py" creates tensor data from original text data (see dataset/././data.txt).
-- "train.py" trains a GNN model using the preprocessed data to predict a molecular property.
-
-You can easy to train a GNN model by the following commands.
-
-Clone our repository,
-```
-git clone https://github.com/masashitsubaki/molecularGNN_smiles.git
-```
-change directory, 
-```
-cd molecularGNN_smiles/main
-```
-and run the bash file for training.
-```
-bash train.sh
+```bash
+conda create -n HDDLIMA python=3.10 -y
+conda activate HDDLIMA
+pip install -r requirements.txt
 ```
 
-You can also change the model hyperparameters described in train.sh (e.g., the dimensionality, number of hidden layers, and batch size). Try to learn various GNN models to find your own best model for your dataset!
+---
 
+## 4. Data Policy and Expected Formats
 
-## Learning a GNN with your dataset
+### 4.1 Data Availability
 
-In this repository, we provide two datasets of regression (see dataset/regression/photovoltaic/data.txt) and classification (see dataset/classification/HIV/data.txt) as follows:
+This repository **does not include** the raw or processed MS datasets used in the paper. The datasets are internally curated and can be shared only upon reasonable request (project-specific policy).
 
-<div align="center">
-<p><img src="figures/data_regression.jpeg" width="600" /></p>
-</div>
+### 4.2 Dataset Placement
 
-<div align="center">
-<p><img src="figures/data_classification.jpeg" width="600" /></p>
-</div>
+Place your CSV files under:
 
-If you prepare a dataset with the same format (any molecular property can be used!), you can learn a GNN model with your dataset.
-
-
-## How to cite
-
+```text
+data/
+  your_train_dataset.csv
+  your_val_dataset.csv
+  your_test_dataset.csv
 ```
-@article{tsubaki2018compound,
-  title={Compound-protein Interaction Prediction with End-to-end Learning of Neural Networks for Graphs and Sequences},
-  author={Tsubaki, Masashi and Tomii, Kentaro and Sese, Jun},
-  journal={Bioinformatics},
-  year={2018}
-}
+
+At minimum, evaluation via `test.py` requires that the CSV contains a **SMILES** column. If you want category-stratified reporting, include a **label** column.
+
+**Recommended columns for evaluation CSV:**
+
+* `smiles` (required): SMILES string
+* `label` (optional): scenario/category label (e.g., Fire / Poisoning / Terrorism / Polyester / Nylon)
+
+Any additional columns required by your preprocessing pipeline (e.g., peak arrays, metadata, auxiliary features) should be described in your internal schema documentation.
+
+---
+
+## 5. Training
+
+### 5.1 Running training
+
+Training is orchestrated by `train.py`. For Windows, `train.bat` is the reference entry point and typically encodes the exact arguments used for internal experiments.
+
+```bash
+# Option A (recommended on Windows): use the provided batch script
+train.bat
+
+# Option B: run directly (arguments depend on your implementation in train.py)
+python train.py <...your arguments...>
 ```
+
+### 5.2 Outputs
+
+A typical run creates:
+
+* `output/checkpoints/run_XX/fingerprint_dict.pth`
+  Dictionary mapping fingerprint representation to indices (used at evaluation time).
+* `output/checkpoints/run_XX/model_checkpoint_*.pth`
+  Model weights and `model_args` (used to restore architecture at test time).
+
+---
+
+## 6. Evaluation
+
+Evaluation is implemented in `test.py`. The script loads:
+
+1. A model checkpoint (`.pth`)
+2. The fingerprint dictionary (`fingerprint_dict.pth`) from the corresponding training run directory
+3. A test CSV file
+
+### 6.1 Command
+
+```bash
+python test.py <checkpoint_path> <output_dir> ^
+  --test_file <csv_path> ^
+  --checkpoint_dir <train_run_dir_containing_fingerprint_dict> ^
+  --n_outputs 5 ^
+  --radius 1
+```
+
+**Arguments**
+
+* `<checkpoint_path>`: path to a trained model checkpoint (e.g., `output/checkpoints/run_01/model_checkpoint_epoch_XXX.pth`)
+* `<output_dir>`: directory where predictions and metrics will be saved
+* `--test_file`: test CSV (must include at least `smiles`; `label` optional)
+* `--checkpoint_dir`: directory containing `fingerprint_dict.pth`
+* `--n_outputs`: number of output peaks/slots expected by the preprocessing pipeline
+* `--radius`: fingerprint radius used in preprocessing
+
+### 6.2 Evaluation Outputs
+
+`test.py` produces:
+
+* `predictions.xlsx`
+
+  * `predictions` sheet: per-SMILES Top-*k* rows including predicted and ground-truth peaks
+  * `metrics_overall`, `metrics_by_category`, `metrics_by_rank`, `metrics_cat_rank`
+* `metrics.csv`
+
+  * merged metrics blocks for convenient downstream plotting/aggregation
+
+### 6.3 Metrics
+
+Reported metrics include:
+
+* *m/z*: MAE, RMSE, Cosine similarity, SAM (and optionally PPM-MAE)
+* intensity: MAE, RMSE, Cosine similarity, SAM
+
+---
+
+## License
+
+- **Source code**: Apache-2.0 License (see `LICENSE`)
+- **Datasets**: Not publicly available. Access may be granted upon reasonable request for peer review or non-commercial academic research. Redistribution is not permitted without explicit written permission.
+

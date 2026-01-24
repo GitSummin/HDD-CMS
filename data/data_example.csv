@@ -1,0 +1,5 @@
+SMILES,m/z,Intensity,Dependency,Label
+[C-]#[O+],12.0,88.0,0.088,Fire
+[C-]#[O+],16.0,44.0,0.044,Fire
+[C-]#[O+],28.0,999.0,0.999,Fire
+[C-]#[O+],29.0,11.0,0.011,Fire
