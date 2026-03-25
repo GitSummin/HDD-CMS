@@ -1,6 +1,6 @@
 # HDD-CMS: Hybrid-noise & Dynamic-optimization Diffusion for Library-Complementary Mass Spectrometry Analysis
 
-HDD-LIMA is a structure-conditioned generative framework for synthesizing mass spectra from molecular structure representations (e.g., SMILES). The goal is to support spectrum generation and analysis in settings where reference libraries are incomplete or unavailable.
+HDD-CMS is a structure-conditioned generative framework for synthesizing mass spectra from molecular structure representations (e.g., SMILES). The goal is to support spectrum generation and analysis in settings where reference libraries are incomplete or unavailable.
 
 ---
 
@@ -28,7 +28,7 @@ Model evaluation in this repository is based on a top-*k* peak protocol and repo
 ## 2. Repository Structure
 
 ```text
-HDD-LIMA/
+HDD-CMS/
 ├─ data/
 │  ├─ preprocess.py
 │  └─ csv                      # internal datasets (not publicly released)
