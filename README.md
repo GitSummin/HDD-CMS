@@ -67,8 +67,8 @@ HDD-CMS/
 ### 3.2 Environment Setup (Conda recommended)
 
 ```bash
-conda create -n HDDLIMA python=3.10 -y
-conda activate HDDLIMA
+conda create -n HDDCMS python=3.10 -y
+conda activate HDDCMS
 pip install -r requirements.txt
 ```
 
